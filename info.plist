@@ -21,15 +21,28 @@
 				<false/>
 			</dict>
 		</array>
+		<key>4C02A5A0-A996-4927-9D5B-8C5CB58EE993</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>C95B75B8-F523-485C-B9E9-DADD6EBBB474</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
 	</dict>
 	<key>createdby</key>
 	<string>Eli Atlas</string>
 	<key>description</key>
-	<string>Open recent Claude Code projects in iTerm</string>
+	<string>Open recent Claude Code or Codex projects</string>
 	<key>disabled</key>
 	<false/>
 	<key>name</key>
-	<string>Claude Projects</string>
+	<string>Claude &amp; Codex Projects</string>
 	<key>objects</key>
 	<array>
 		<dict>
@@ -60,7 +73,7 @@
 				<key>runningsubtext</key>
 				<string>Loading projects...</string>
 				<key>script</key>
-				<string>/usr/bin/python3 claude_projects.py "$1"</string>
+				<string>/usr/bin/python3 claude_projects.py claude</string>
 				<key>scriptargtype</key>
 				<integer>1</integer>
 				<key>scriptfile</key>
@@ -84,12 +97,87 @@
 		<dict>
 			<key>config</key>
 			<dict>
+				<key>alfredfiltersresults</key>
+				<true/>
+				<key>alfredfiltersresultsmatchmode</key>
+				<integer>0</integer>
+				<key>argumenttreatemptyqueryasnil</key>
+				<false/>
+				<key>argumenttrimmode</key>
+				<integer>0</integer>
+				<key>argumenttype</key>
+				<integer>1</integer>
+				<key>escaping</key>
+				<integer>102</integer>
+				<key>keyword</key>
+				<string>cxp</string>
+				<key>queuedelaycustom</key>
+				<integer>3</integer>
+				<key>queuedelayimmediatelyalinitially</key>
+				<true/>
+				<key>queuedelaymode</key>
+				<integer>0</integer>
+				<key>queuemode</key>
+				<integer>1</integer>
+				<key>runningsubtext</key>
+				<string>Loading Codex projects...</string>
+				<key>script</key>
+				<string>/usr/bin/python3 claude_projects.py codex</string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string></string>
+				<key>subtext</key>
+				<string>Search recent Codex projects</string>
+				<key>title</key>
+				<string>Codex Projects</string>
+				<key>type</key>
+				<integer>0</integer>
+				<key>withspace</key>
+				<true/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.input.scriptfilter</string>
+			<key>uid</key>
+			<string>4C02A5A0-A996-4927-9D5B-8C5CB58EE993</string>
+			<key>version</key>
+			<integer>3</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
 				<key>concurrently</key>
 				<false/>
 				<key>escaping</key>
 				<integer>102</integer>
 				<key>script</key>
 				<string>DIR="$1"
+ACTION="${action:-claude}"
+
+if [ "$ACTION" = "finder" ]; then
+	open -R "$DIR"
+	exit 0
+fi
+
+if [ "$ACTION" = "copy" ]; then
+	printf '%s' "$DIR" | pbcopy
+	exit 0
+fi
+
+if [ "$ACTION" = "codex" ]; then
+	if command -v codex &gt;/dev/null 2&gt;&amp;1; then
+		codex app "$DIR"
+	elif [ -x /opt/homebrew/bin/codex ]; then
+		/opt/homebrew/bin/codex app "$DIR"
+	elif [ -x /usr/local/bin/codex ]; then
+		/usr/local/bin/codex app "$DIR"
+	else
+		osascript -e 'display notification "Install the Codex CLI first" with title "Codex Projects"'
+		exit 127
+	fi
+	exit 0
+fi
+
 osascript &lt;&lt;APPLESCRIPT
 tell application "iTerm"
 	activate
@@ -115,7 +203,8 @@ APPLESCRIPT</string>
 		</dict>
 	</array>
 	<key>readme</key>
-	<string>Type 'clp' to search recent Claude Code projects. Select one to open iTerm in that directory.
+	<string>Type 'clp' to search recent Claude Code projects and open one in iTerm.
+Type 'cxp' to search recent Codex projects and open one in the Codex app.
 
 Modifiers:
 - Cmd: Reveal in Finder
@@ -129,6 +218,13 @@ Modifiers:
 			<key>ypos</key>
 			<integer>100</integer>
 		</dict>
+		<key>4C02A5A0-A996-4927-9D5B-8C5CB58EE993</key>
+		<dict>
+			<key>xpos</key>
+			<integer>100</integer>
+			<key>ypos</key>
+			<integer>250</integer>
+		</dict>
 		<key>C95B75B8-F523-485C-B9E9-DADD6EBBB474</key>
 		<dict>
 			<key>xpos</key>
@@ -138,7 +234,7 @@ Modifiers:
 		</dict>
 	</dict>
 	<key>version</key>
-	<string>1.0.0</string>
+	<string>1.1.0</string>
 	<key>webaddress</key>
 	<string></string>
 </dict>

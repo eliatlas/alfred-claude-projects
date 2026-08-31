@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Alfred Script Filter: list recent Claude Code projects sorted by last use."""
+"""Alfred Script Filter: list recent Claude Code or Codex projects."""
 
 import os
 import json
@@ -7,44 +7,66 @@ import glob
 import sys
 from datetime import datetime
 
-PROJECTS_DIR = os.path.expanduser("~/.claude/projects")
+CLAUDE_PROJECTS_DIR = os.path.expanduser("~/.claude/projects")
+CODEX_SESSIONS_DIR = os.path.expanduser("~/.codex/sessions")
 MAX_RESULTS = 30
 
 # Icon paths - use folder icon from system
 ICON = {"type": "fileicon", "path": "/System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/GenericFolderIcon.icns"}
 
-def get_projects():
-    results = []
-    for entry in os.scandir(PROJECTS_DIR):
-        if not entry.is_dir():
-            continue
-        jsonls = glob.glob(os.path.join(entry.path, "*.jsonl"))
-        if not jsonls:
-            continue
-        newest = max(jsonls, key=os.path.getmtime)
-        cwd = None
-        with open(newest, "r") as f:
-            for line in f:
+def read_cwd(session_path):
+    """Extract a working directory from either provider's JSONL format."""
+    try:
+        with open(session_path, "r", encoding="utf-8", errors="replace") as session:
+            for line in session:
                 try:
                     obj = json.loads(line)
-                    if "cwd" in obj:
-                        cwd = obj["cwd"]
-                        break
-                except Exception:
+                except (TypeError, ValueError):
                     continue
-        if cwd and os.path.isdir(cwd):
-            mtime = entry.stat().st_mtime
-            results.append((mtime, cwd))
 
-    # Deduplicate by cwd, keep most recent
+                cwd = obj.get("cwd")
+                if not cwd and obj.get("type") == "session_meta":
+                    cwd = obj.get("payload", {}).get("cwd")
+                if cwd:
+                    return cwd
+    except OSError:
+        pass
+    return None
+
+
+def recent_projects(session_paths):
+    """Deduplicate projects by cwd, keeping the latest session timestamp."""
+    sessions = []
+    for session_path in session_paths:
+        try:
+            sessions.append((os.path.getmtime(session_path), session_path))
+        except OSError:
+            continue
+
     seen = set()
     unique = []
-    for mtime, cwd in sorted(results, key=lambda x: -x[0]):
-        if cwd not in seen:
+    for mtime, session_path in sorted(sessions, reverse=True):
+        cwd = read_cwd(session_path)
+        if cwd and cwd not in seen and os.path.isdir(cwd):
             seen.add(cwd)
             unique.append((mtime, cwd))
+            if len(unique) == MAX_RESULTS:
+                break
 
-    return unique[:MAX_RESULTS]
+    return unique
+
+
+def get_projects(source):
+    if source == "codex":
+        session_paths = glob.glob(
+            os.path.join(CODEX_SESSIONS_DIR, "**", "*.jsonl"), recursive=True
+        )
+    else:
+        session_paths = glob.glob(
+            os.path.join(CLAUDE_PROJECTS_DIR, "*", "*.jsonl")
+        )
+
+    return recent_projects(session_paths)
 
 
 def make_subtitle(mtime, cwd):
@@ -62,7 +84,10 @@ def make_subtitle(mtime, cwd):
 
 
 def main():
-    projects = get_projects()
+    source = "codex" if len(sys.argv) > 1 and sys.argv[1] == "codex" else "claude"
+    projects = get_projects(source)
+    provider_name = "Codex" if source == "codex" else "Claude Code"
+    sessions_dir = CODEX_SESSIONS_DIR if source == "codex" else CLAUDE_PROJECTS_DIR
 
     items = []
     for mtime, cwd in projects:
@@ -72,13 +97,14 @@ def main():
         match_str = f"{name} {cwd.replace('/', ' ')}"
 
         items.append({
-            "uid": cwd,
+            "uid": f"{source}:{cwd}",
             "title": name,
             "subtitle": subtitle,
             "arg": cwd,
             "match": match_str,
             "autocomplete": name,
             "icon": {"type": "fileicon", "path": cwd},
+            "variables": {"action": source},
             "mods": {
                 "cmd": {
                     "subtitle": f"Reveal in Finder: {cwd}",
@@ -94,8 +120,8 @@ def main():
         })
 
     print(json.dumps({"items": items or [{
-        "title": "No Claude Code projects found",
-        "subtitle": "No session data in ~/.claude/projects/",
+        "title": f"No {provider_name} projects found",
+        "subtitle": f"No session data in {sessions_dir.replace(os.path.expanduser('~'), '~')}/",
         "valid": False
     }]}))
 
