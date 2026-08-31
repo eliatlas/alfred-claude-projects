@@ -165,17 +165,9 @@ if [ "$ACTION" = "copy" ]; then
 fi
 
 if [ "$ACTION" = "codex" ]; then
-	if command -v codex &gt;/dev/null 2&gt;&amp;1; then
-		codex app "$DIR"
-	elif [ -x /opt/homebrew/bin/codex ]; then
-		/opt/homebrew/bin/codex app "$DIR"
-	elif [ -x /usr/local/bin/codex ]; then
-		/usr/local/bin/codex app "$DIR"
-	else
-		osascript -e 'display notification "Install the Codex CLI first" with title "Codex Projects"'
-		exit 127
-	fi
-	exit 0
+	TERMINAL_COMMAND="codex"
+else
+	TERMINAL_COMMAND="claude"
 fi
 
 osascript &lt;&lt;APPLESCRIPT
@@ -183,7 +175,7 @@ tell application "iTerm"
 	activate
 	create window with default profile
 	tell current session of current window
-		write text "cd \"$DIR\" &amp;&amp; clear &amp;&amp; claude"
+		write text "cd \"$DIR\" &amp;&amp; clear &amp;&amp; $TERMINAL_COMMAND"
 	end tell
 end tell
 APPLESCRIPT</string>
@@ -204,7 +196,7 @@ APPLESCRIPT</string>
 	</array>
 	<key>readme</key>
 	<string>Type 'clp' to search recent Claude Code projects and open one in iTerm.
-Type 'cxp' to search recent Codex projects and open one in the Codex app.
+Type 'cxp' to search recent Codex projects and open one in iTerm.
 
 Modifiers:
 - Cmd: Reveal in Finder
@@ -234,7 +226,7 @@ Modifiers:
 		</dict>
 	</dict>
 	<key>version</key>
-	<string>1.1.0</string>
+	<string>1.1.1</string>
 	<key>webaddress</key>
 	<string></string>
 </dict>
